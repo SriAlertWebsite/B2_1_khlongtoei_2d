@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet.photon.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+         /* ─── 1. สไตล์ควบคุมหน้าต่างด้านขวา (Sidebar) ─── */
+#sidebar-info {
+    width: 320px !important;
+    height: 100vh !important;
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+    padding: 25px 20px !important;
+    box-shadow: -4px 0px 15px rgba(0,0,0,0.15) !important;
+    box-sizing: border-box !important;
+    transition: transform 0.3s ease !important;
+    z-index: 99999 !important; /* ลอยอยู่บนสุดเหนือแผนที่ */
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+}
+.sidebar-hidden {
+    transform: translateX(100%) !important; /* สไลด์ซ่อนตกขอบจอขวา */
+}
+#toggle-btn {
+    position: absolute !important;
+    left: -30px !important; 
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 30px !important;
+    height: 60px !important;
+    background-color: #2ecc71 !important; /* ปุ่มเขียว */
+    color: white !important;
+    border: none !important;
+    border-radius: 8px 0 0 8px !important;
+    cursor: pointer !important;
+    font-size: 16px !important;
+    font-weight: bold !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: -3px 2px 8px rgba(0,0,0,0.15) !important;
+}
+#toggle-btn:hover { background-color: #27ae60 !important; }
+#sidebar-info h1 { font-size: 20px !important; margin: 0 0 8px 0 !important; font-weight: 700 !important; color: #2c3e50; }
+#sidebar-info hr { height: 3px !important; background-color: #2ecc71 !important; border: none !important; margin-bottom: 20px !important; }
+#sidebar-info p { font-size: 14px !important; color: #4a5568 !important; line-height: 1.6 !important; margin: 0 !important; }
+#sidebar-info ul { margin-top: 5px; padding-left: 20px; }
+
+/* ─── 2. สไตล์ควบคุมป๊อปอัพเหลี่ยมคม คาดสีน้ำเงิน + ห่างขอบ 0.5 ซม. ─── */
+.leaflet-popup-content-wrapper {
+    background: #ffffff !important;
+    border-radius: 0px !important; /* มุมเหลี่ยม 100% */
+    padding: 0 !important; 
+    overflow: hidden !important;
+    box-shadow: none !important;
+    border: 1px solid #1a365d !important; 
+}
+.leaflet-popup-content { margin: 0 !important; width: 350px !important; }
+.leaflet-popup-content table { width: 100% !important; border-collapse: collapse !important; margin: 0 !important; border: none !important; }
+.leaflet-popup-content th, .leaflet-popup-content td {
+    padding: 10px 18px !important; /* เว้นระยะห่างรอบตัวอักษร 0.5 ซม. */
+    font-size: 13px !important; text-align: left !important; vertical-align: middle !important; box-sizing: border-box !important;
+}
+.leaflet-popup-content table tr:first-child { background-color: #1a365d !important; }
+.leaflet-popup-content table tr:first-child td { background-color: #1a365d !important; color: #ffffff !important; font-weight: bold !important; font-size: 14px !important; border: none !important; }
+.leaflet-popup-content table tr:first-child td:first-child, .leaflet-popup-content table tr:first-child td:first-child * { color: #ffffff !important; opacity: 1 !important; }
+.leaflet-popup-content table tr:first-child td:last-child { color: #ffffff !important; padding-right: 45px !important; }
+.leaflet-popup-content tr:not(:first-child) td { color: #000000 !important; border-bottom: 1px solid #cccccc !important; background-color: #ffffff !important; }
+.leaflet-popup-content table tr:not(:first-child) td:first-child { font-weight: bold !important; color: #333333 !important; width: 32% !important; border-right: 1px solid #cccccc !important; }
+.leaflet-popup-content table a { text-decoration: none !important; color: #000000 !important; }
+.leaflet-popup-content table a:hover { text-decoration: none !important; }
+.leaflet-popup-content table td a.img-link-click { color: #1a365d !important; font-weight: bold !important; text-decoration: underline !important; }
+.leaflet-popup-close-button { color: #ffffff !important; padding: 0 !important; font-size: 16px !important; top: 11px !important; right: 15px !important; z-index: 99999 !important; line-height: 1 !important; }
+.leaflet-popup-close-button:hover { color: #feb2b2 !important; background: none !important; }
+.leaflet-popup-tip-container { display: none !important; }
+		
+/* Modern, academic cartographic UI */
+:root{--navy:#193657;--teal:#087c88;--text:#203b55;--muted:#62768a;--border:#e0e8f0}
+*{box-sizing:border-box}html,body{font-family:Tahoma,'Noto Sans Thai',Arial,sans-serif!important;color:var(--text)}
+.map-title{position:fixed;left:18px;top:18px;z-index:750;background:#fff;border:1px solid var(--border);border-radius:9px;box-shadow:0 5px 26px #1d38572a;max-width:min(570px,calc(100vw - 480px));padding:17px 21px}
+.map-title strong{font-size:20px;color:var(--navy);line-height:1.5;display:block}
+.map-mini-legend{position:fixed;bottom:22px;left:18px;z-index:760;background:white;border:1px solid #e9edf2;border-radius:8px;padding:11px 14px;box-shadow:0 5px 18px #19365022;display:flex;align-items:center;flex-wrap:wrap;gap:11px;font-size:13px}
+.color-chip{display:inline-block;height:13px;width:13px;border:1px solid #556a7b;vertical-align:middle;margin-right:5px;border-radius:2px}
+.height-sidebar{position:fixed;right:0;top:0;bottom:0;width:390px;background:#fff;border-left:1px solid var(--border);box-shadow:-6px 0 23px #11283d18;z-index:900;transition:transform .27s ease;display:flex;flex-direction:column}
+.height-sidebar.is-closed{transform:translateX(100%)}
+.height-sidebar__body{height:100%;overflow-y:auto;padding:27px 25px 35px}
+.height-side-head{display:flex;justify-content:space-between;align-items:start;gap:10px}.height-side-head h2{font-size:23px;line-height:1.4;color:var(--navy);margin:0}.height-close{background:#fff;border:1px solid #dee7ee;border-radius:8px;color:var(--navy);cursor:pointer;width:32px;height:32px;font-size:21px;flex:none}.height-accent{width:50px;height:3px;background:var(--teal);margin:15px 0 20px;border-radius:3px}
+.height-card{background:#f5f8fb;border:1px solid #e7edf2;border-radius:10px;padding:19px 17px;margin-bottom:18px}.height-card h3{font-size:16px;line-height:1.4;margin:0 0 16px;color:var(--navy)}
+.height-category{display:flex;gap:13px;align-items:start;margin:15px 0;line-height:1.7;font-size:15px}.height-category b{font-weight:700;display:block;color:#263f57}.height-category .color-chip{height:20px;width:20px;min-width:20px;margin-top:4px}
+.height-hint{font-size:14px;line-height:1.8;color:#62748a;margin:13px 0 0}
+.height-foot{font-size:13px;color:#6b7f92;line-height:1.8;border-top:1px solid var(--border);padding-top:18px}
+.height-toggle{position:fixed;top:50%;right:390px;transform:translateY(-50%);z-index:960;background:var(--navy);color:white;border:none;border-radius:8px 0 0 8px;cursor:pointer;width:36px;height:66px;font-size:22px;transition:right .27s ease;box-shadow:-2px 3px 10px #122c4640}.height-toggle.is-closed{right:0}
+.leaflet-control-layers{max-width:min(310px,calc(100vw - 65px));max-height:48vh;overflow-y:auto;border:1px solid #e1e8ef!important;border-radius:8px!important;box-shadow:0 4px 15px #1f385822!important}.leaflet-control-layers-expanded{font-size:14px!important}.leaflet-top.leaflet-left{top:105px;left:9px}
+.leaflet-popup-content-wrapper{border:1px solid #dce5ee!important;border-radius:0!important;box-shadow:0 13px 37px #18354a4d!important;overflow:hidden!important;padding:0!important}.leaflet-popup-content{width:355px!important;max-width:calc(100vw - 60px)!important;margin:0!important}.leaflet-popup-content table{border-collapse:collapse;width:100%;font-size:13px}.leaflet-popup-content th,.leaflet-popup-content td{border:1px solid #dce5ee!important;padding:9px 12px!important;color:#1d3650!important;text-align:left;overflow-wrap:anywhere}.leaflet-popup-content th{background:#eff4f8!important;width:43%;font-weight:700}.height-popup-heading{background:var(--navy);color:white;font-size:17px;font-weight:bold;padding:16px 45px 16px 17px}.leaflet-popup-close-button{color:#fff!important;top:12px!important;right:13px!important;font-size:24px!important;z-index:5000!important}
+@media(max-width:750px){.height-sidebar{width:min(90vw,390px)}.height-toggle{right:min(90vw,390px)}.map-title{top:10px;left:10px;max-width:calc(100vw - 40px);padding:12px 14px}.map-title strong{font-size:15px}.map-mini-legend{bottom:14px;left:10px;font-size:11px;max-width:calc(100vw - 25px)}.leaflet-top.leaflet-left{top:115px;left:7px}}
+
+</style>
+        <title>แผนที่แสดงการกระจายตัวของความสูงอาคารในพื้นที่เขตคลองเตย</title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet.photon.js"></script>
+        <script src="data/KhlongToeiDistrict_1.js"></script>
+        <script>
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        }).fitBounds([[13.697903418652498,100.54304181964638],[13.745675803902662,100.63628532425417]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/qgis2web/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // modify popup if contains media
+        function addClassToPopupIfMedia(content, popup) {
+            var tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            var imgTd = tempDiv.querySelector('td img');
+            if (imgTd) {
+                var src = imgTd.getAttribute('src');
+                if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+                    popup._contentNode.classList.add('media');
+                    var img = popup._contentNode.querySelector('td img');
+                    if (img) {
+                        // If already loaded (cache), update immediately
+                        if (img.complete && img.naturalHeight > 0) {
+                            popup.update();
+                        } else {
+                            img.addEventListener('load', function() {
+                                popup.update();
+                            });
+                            img.addEventListener('error', function() {
+                                popup.update();
+                            });
+                        }
+                    }
+                } else if (/\.(mp3|wav|ogg|aac)$/i.test(src)) {
+                    var audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.src = src;
+                    imgTd.parentNode.replaceChild(audio, imgTd);
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp4|webm|ogg|mov)$/i.test(src)) {
+                    var video = document.createElement('video');
+                    video.controls = true;
+                    video.src = src;
+                    video.style.width = "400px";
+                    video.style.height = "300px";
+                    video.style.maxHeight = "60vh";
+                    video.style.maxWidth = "60vw";
+                    imgTd.parentNode.replaceChild(video, imgTd);
+                    popup._contentNode.classList.add('media');
+                    // Aggiorna il popup quando il video carica i metadati
+                    video.addEventListener('loadedmetadata', function() {
+                        popup.update();
+                    });
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else {
+                    popup._contentNode.classList.remove('media');
+                }
+            } else {
+                popup._contentNode.classList.remove('media');
+            }
+        }
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+        }
+        map.createPane('pane_GoogleSatellite2026_0');
+        map.getPane('pane_GoogleSatellite2026_0').style.zIndex = 400;
+        var layer_GoogleSatellite2026_0 = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            pane: 'pane_GoogleSatellite2026_0',
+            opacity: 1.0,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 18
+        });
+        layer_GoogleSatellite2026_0;
+        map.addLayer(layer_GoogleSatellite2026_0);
+        function pop_KhlongToeiDistrict_1(feature, layer) {
+            var p=feature.properties||{};
+            function escapeHtml(v){return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+            var fields=[['รหัสอาคาร','BLDG_ID'],['ชื่ออาคาร','BL_NAME'],['ความสูงอาคาร (m)','Cal_HEIGHT'],['ความสูงอาคารตามข้อมูล (m)','BL_HEIGHT'],['จำนวนชั้น','BL_NSTOREY'],['พื้นที่อาคาร','BL_AREA'],['ชื่อถนน','BL_ROAD'],['ซอย','BL_SOI'],['แขวง','BL_SUB_DIS'],['เขต','BL_DISTRIC']];
+            var rows=fields.map(function(item){var v=p[item[1]];return v===null||v===undefined||v===''?'':'<tr><th>'+escapeHtml(item[0])+'</th><td>'+escapeHtml(v)+'</td></tr>';}).join('');
+            if(!rows){rows='<tr><td colspan="2">ไม่มีข้อมูลรายละเอียดอาคาร</td></tr>';}
+            var content='<div class="height-popup-heading">ข้อมูลอาคาร</div><table>'+rows+'</table>';
+            layer.bindPopup(content,{maxHeight:420,maxWidth:400,closeButton:true,autoPan:true});
+        }
+
+        function style_KhlongToeiDistrict_1_0(feature) {
+            if (feature.properties['Cal_HEIGHT'] >= 0.000000 && feature.properties['Cal_HEIGHT'] <= 15.000000 ) {
+                return {
+                pane: 'pane_KhlongToeiDistrict_1',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(43,131,186,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['Cal_HEIGHT'] >= 15.000000 && feature.properties['Cal_HEIGHT'] <= 30.000000 ) {
+                return {
+                pane: 'pane_KhlongToeiDistrict_1',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(171,221,164,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['Cal_HEIGHT'] >= 30.000000 && feature.properties['Cal_HEIGHT'] <= 60.000000 ) {
+                return {
+                pane: 'pane_KhlongToeiDistrict_1',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,238,47,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['Cal_HEIGHT'] >= 60.000000 && feature.properties['Cal_HEIGHT'] <= 100.000000 ) {
+                return {
+                pane: 'pane_KhlongToeiDistrict_1',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(253,174,97,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['Cal_HEIGHT'] >= 100.000000 && feature.properties['Cal_HEIGHT'] <= 400.000000 ) {
+                return {
+                pane: 'pane_KhlongToeiDistrict_1',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(215,25,28,1.0)',
+                interactive: true,
+            }
+            }
+        }
+        map.createPane('pane_KhlongToeiDistrict_1');
+        map.getPane('pane_KhlongToeiDistrict_1').style.zIndex = 401;
+        map.getPane('pane_KhlongToeiDistrict_1').style['mix-blend-mode'] = 'normal';
+        var layer_KhlongToeiDistrict_1 = new L.geoJson(json_KhlongToeiDistrict_1, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_KhlongToeiDistrict_1',
+            layerName: 'layer_KhlongToeiDistrict_1',
+            pane: 'pane_KhlongToeiDistrict_1',
+            onEachFeature: pop_KhlongToeiDistrict_1,
+            style: style_KhlongToeiDistrict_1_0,
+        });
+        bounds_group.addLayer(layer_KhlongToeiDistrict_1);
+        map.addLayer(layer_KhlongToeiDistrict_1);
+        var overlaysTree = [
+            {label: 'Khlong Toei District <br /><table><tr><td style="text-align: center;"><span class="legend-color-chip" style="display:inline-block;width:15px;height:15px;background:#2b83ba;border:1px solid #8492a1;vertical-align:middle" aria-hidden="true"></span></td><td>0 - 15</td></tr><tr><td style="text-align: center;"><span class="legend-color-chip" style="display:inline-block;width:15px;height:15px;background:#abdda4;border:1px solid #8492a1;vertical-align:middle" aria-hidden="true"></span></td><td>15 - 30</td></tr><tr><td style="text-align: center;"><span class="legend-color-chip" style="display:inline-block;width:15px;height:15px;background:#ffee2f;border:1px solid #8492a1;vertical-align:middle" aria-hidden="true"></span></td><td>30 - 60</td></tr><tr><td style="text-align: center;"><span class="legend-color-chip" style="display:inline-block;width:15px;height:15px;background:#fdae61;border:1px solid #8492a1;vertical-align:middle" aria-hidden="true"></span></td><td>60 - 100</td></tr><tr><td style="text-align: center;"><span class="legend-color-chip" style="display:inline-block;width:15px;height:15px;background:#d7191c;border:1px solid #8492a1;vertical-align:middle" aria-hidden="true"></span></td><td>100 - 400</td></tr></table>', layer: layer_KhlongToeiDistrict_1},
+            {label: "OpenStreetMap", layer: layer_GoogleSatellite2026_0},]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            position: 'topleft',
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: true, 
+        });
+        lay.addTo(map);
+		// Layer control uses native Leaflet collapse/expand to avoid overlap with the right sidebar.
+        setBounds();
+        </script>
+
+<div class="map-title"><strong>แผนที่แสดงการกระจายตัวของความสูงอาคารในพื้นที่เขตคลองเตย</strong></div>
+<div class="map-mini-legend" aria-label="คำอธิบายช่วงความสูงอาคาร">
+ <span><i class="color-chip" style="background:#2b83ba"></i>0–15 ม.</span>
+ <span><i class="color-chip" style="background:#abdda4"></i>15–30 ม.</span>
+ <span><i class="color-chip" style="background:#ffee2f"></i>30–60 ม.</span>
+ <span><i class="color-chip" style="background:#fdae61"></i>60–100 ม.</span>
+ <span><i class="color-chip" style="background:#d7191c"></i>100 ม.ขึ้นไป</span>
+</div>
+<button id="heightToggle" class="height-toggle" type="button" aria-expanded="true" aria-controls="heightSidebar" aria-label="ปิดแถบรายละเอียด">›</button>
+<aside class="height-sidebar" id="heightSidebar" aria-label="รายละเอียดแผนที่สำรวจ">
+ <div class="height-sidebar__body">
+  <div class="height-side-head"><h2>รายละเอียดแผนที่สำรวจ</h2><button id="heightClose" class="height-close" type="button" aria-label="ปิดแถบรายละเอียด">×</button></div><div class="height-accent"></div>
+  <div class="height-card"><h3>การกระจายตัวของความสูงอาคาร</h3>
+   <div class="height-category"><span class="color-chip" style="background:#2b83ba"></span><div><b>สีฟ้า</b>ความสูงอาคาร 0 ถึง 15 เมตร</div></div>
+   <div class="height-category"><span class="color-chip" style="background:#abdda4"></span><div><b>สีเขียว</b>ความสูงอาคาร 15 ถึง 30 เมตร</div></div>
+   <div class="height-category"><span class="color-chip" style="background:#ffee2f"></span><div><b>สีเหลือง</b>ความสูงอาคาร 30 ถึง 60 เมตร</div></div>
+   <div class="height-category"><span class="color-chip" style="background:#fdae61"></span><div><b>สีส้ม</b>ความสูงอาคาร 60 ถึง 100 เมตร</div></div>
+   <div class="height-category"><span class="color-chip" style="background:#d7191c"></span><div><b>สีแดง</b>ความสูงอาคาร 100 เมตร ขึ้นไป</div></div>
+  </div>
+  <div class="height-card"><h3>วิธีใช้งานแผนที่</h3><p class="height-hint">คลิกพื้นที่อาคารเพื่อดูรายละเอียดอาคารในรูปแบบตาราง และกด × เพื่อปิดหน้าต่างข้อมูล</p><p class="height-hint">กดปุ่มเลือกเลเยอร์ใต้ปุ่มซูมทางด้านซ้าย เพื่อเปิดรายการชั้นข้อมูล จากนั้นกดช่องทำเครื่องหมายเพื่อเปิด–ปิดชั้นข้อมูลอาคาร</p></div>
+  <div class="height-foot">ข้อมูลบนแผนที่ใช้ประกอบการศึกษาและวิเคราะห์เชิงพื้นที่<br>ข้อมูลแผนที่ © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a></div>
+ </div>
+</aside>
+<script>
+(function(){
+ var panel=document.getElementById('heightSidebar'),toggle=document.getElementById('heightToggle'),close=document.getElementById('heightClose');
+ function setOpen(open){panel.classList.toggle('is-closed',!open);toggle.classList.toggle('is-closed',!open);toggle.textContent=open?'›':'‹';toggle.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-label',open?'ปิดแถบรายละเอียด':'เปิดแถบรายละเอียด');}
+ toggle.addEventListener('click',function(){setOpen(panel.classList.contains('is-closed'));});
+ close.addEventListener('click',function(){setOpen(false);});
+})();
+</script>
+</body></html>
